@@ -32,6 +32,8 @@ class SimpleTestCase(base.TestCase):
         self.assertEqual(len(dead), 0)
         self.assertEqual(self.http_request(port), 200)
 
+        self.unregister_frontend(frontend)
+
     def test_backend_replaced(self):
         """ The backend ID of a frontend has been replaced by a new one """
         port = 1080
@@ -50,3 +52,5 @@ class SimpleTestCase(base.TestCase):
         dead = self.redis.smembers('dead:{0}'.format(frontend))
         self.assertEqual(len(dead), 0)
         self.assertEqual(self.http_request(port), 200)
+
+        self.unregister_frontend(frontend)

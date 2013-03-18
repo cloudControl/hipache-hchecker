@@ -19,6 +19,8 @@ class SimpleTestCase(base.TestCase):
             frontend = self.add_check(port)
             time.sleep(4)
             dead = self.redis.smembers('dead:{0}'.format(frontend))
+
+            self.unregister_frontend(frontend)
             self.assertEqual(len(dead), expect, '{0} != {1} (code = {2})'.format(
                 len(dead), expect, code))
             self.assertEqual(self.http_request(port), code)

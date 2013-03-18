@@ -15,6 +15,7 @@ class SimpleTestCase(base.TestCase):
         dead = self.redis.smembers('dead:{0}'.format(frontend))
         self.assertEqual(len(dead), 0)
         self.assertEqual(self.http_request(port), 200)
+        self.unregister_frontend(frontend)
 
     def test_single_backend(self):
         """ Monitoring of a single HTTP backend (not checked) """
@@ -26,6 +27,7 @@ class SimpleTestCase(base.TestCase):
         dead = self.redis.smembers('dead:{0}'.format(frontend))
         self.assertEqual(len(dead), 0)
         self.assertEqual(self.http_request(port), 501)
+        self.unregister_frontend(frontend)
 
     def test_error(self):
         """ Monitoring of an invalid HTTP server """
@@ -35,6 +37,7 @@ class SimpleTestCase(base.TestCase):
         dead = self.redis.smembers('dead:{0}'.format(frontend))
         self.assertEqual(len(dead), 1)
         self.assertEqual(self.http_request(port), -1)
+        self.unregister_frontend(frontend)
 
     def test_multiple_backends(self):
         """ Monitoring of a frontend with 2 backends """
@@ -47,3 +50,4 @@ class SimpleTestCase(base.TestCase):
         self.assertEqual(len(dead), 1)
         self.assertEqual(self.http_request(port), 501)
         self.assertEqual(self.http_request(port + 1), 200)
+        self.unregister_frontend(frontend)
