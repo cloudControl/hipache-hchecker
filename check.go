@@ -20,16 +20,18 @@ const (
 	HTTP_URI = "/CloudHealthCheck"
 	// HTTP Host header
 	HTTP_HOST = "ping"
-	// Check the URL every 3 seconds
-	CHECK_INTERVAL = 3
-	// If the test keeps the same state for 30 min, stop it
-	CHECK_DURATION = 1800
+	// Cloud Provider
+	PROVIDER = "cloudControl"
+	// Check the URL every 5 seconds
+	CHECK_INTERVAL = 5
+	// If the test keeps the same state for 5 min, stop it
+	CHECK_DURATION = 300
 	// Check every 1 minute if we break the check
 	CHECK_BREAK_INTERVAL = 60
-	// Connection timeout is 3 seconds by default
-	CONNECTION_TIMEOUT = 3
+	// Connection timeout is 20 seconds by default
+	CONNECTION_TIMEOUT = 20
 	// IO timeout applies after the connection
-	IO_TIMEOUT = 3
+	IO_TIMEOUT = 20
 )
 
 var (
@@ -79,7 +81,7 @@ func NewCheck(line string) (*Check, error) {
 	c := &Check{BackendUrl: backendUrl, BackendId: backendId,
 		BackendGroupLength: backendGroupLength, FrontendKey: parts[0]}
 	if len(httpUserAgent) == 0 {
-		httpUserAgent = fmt.Sprintf("dotCloud-HealthCheck/%s %s", VERSION,
+		httpUserAgent = fmt.Sprintf("%s-HealthCheck/%s %s", PROVIDER, VERSION,
 			runtime.Version())
 	}
 	return c, nil
@@ -122,6 +124,7 @@ func (c *Check) doHttpRequest() (*http.Response, error) {
 	req.Host = httpHost
 	req.Header.Add("User-Agent", httpUserAgent)
 	req.Close = true
+	log.Println(c.FrontendKey, "Requesting", req.URL, "...")
 	return httpTransport.RoundTrip(req)
 }
 
@@ -133,7 +136,9 @@ func (c *Check) PingUrl(ch chan int) {
 		status          = false
 		newStatus       = true
 		firstCheck      = true
+		healthy         = false
 		i               = time.Duration(0)
+		n               = 1
 	)
 	for {
 		select {
@@ -143,20 +148,24 @@ func (c *Check) PingUrl(ch chan int) {
 			firstCheck = true
 		default:
 		}
+		log.Println(c.FrontendKey, "Checking", c.BackendUrl, "for", n, "time.", time.Since(lastStateChange), "since last status change.")
 		resp, err := c.doHttpRequest()
 		if err != nil {
 			// TCP error
 			newStatus = false
-			log.Println(c.BackendUrl, "TCP error:", err.Error())
+			healthy = false
+			log.Println(c.FrontendKey, "Response from", c.BackendUrl, "... TCP error:", err.Error())
 		} else {
 			// No TCP error, checking HTTP code
 			if resp.StatusCode >= 500 && resp.StatusCode < 600 &&
 				resp.StatusCode != 503 {
 				newStatus = false
-				log.Println(c.BackendUrl, "HTTP error:", resp.Status)
+				healthy = false
+				log.Println(c.FrontendKey, "Response from", c.BackendUrl, "... HTTP error:", resp.Status)
 			} else {
 				newStatus = true
-				log.Println(c.BackendUrl, "OK", resp.StatusCode)
+				healthy = true
+				log.Println(c.FrontendKey, "Response from", c.BackendUrl, "... OK", resp.StatusCode)
 			}
 		}
 		if resp != nil && resp.Body != nil {
@@ -168,7 +177,7 @@ func (c *Check) PingUrl(ch chan int) {
 			if newStatus == true {
 				if c.aliveCallback != nil {
 					if r := c.aliveCallback(); r == false {
-						log.Println(c.BackendUrl, "Backend not found in Redis")
+						log.Println(c.FrontendKey, "Backend", c.BackendUrl, "not found in Redis")
 						break
 					}
 				}
@@ -176,7 +185,7 @@ func (c *Check) PingUrl(ch chan int) {
 			} else {
 				if c.deadCallback != nil {
 					if r := c.deadCallback(); r == false {
-						log.Println(c.BackendUrl, "Backend not found in Redis")
+						log.Println(c.FrontendKey, "Backend", c.BackendUrl, "not found in Redis")
 						break
 					}
 				}
@@ -190,7 +199,7 @@ func (c *Check) PingUrl(ch chan int) {
 					(time.Duration(30)*time.Second) {
 				if c.deadCallback != nil {
 					if r := c.deadCallback(); r == false {
-						log.Println(c.BackendUrl, "Backend not found in Redis")
+						log.Println(c.FrontendKey, "Backend", c.BackendUrl, "not found in Redis")
 						break
 					}
 				}
@@ -201,23 +210,24 @@ func (c *Check) PingUrl(ch chan int) {
 		firstCheck = false
 		time.Sleep(checkInterval)
 		i += checkInterval
+		n += 1
 		// At longer interval, we check if still have the lock on the backend
 		if i >= checkBreakInterval {
 			if c.checkIfBreakCallback != nil &&
 				c.checkIfBreakCallback() == true {
-				log.Println(c.BackendUrl, "Lost the lock")
+				log.Println(c.FrontendKey, "Backend", c.BackendUrl, " lost the lock")
 				break
 			}
 			// Let's see if the check is in the same state for a while
-			if time.Since(lastStateChange) >= checkDuration {
-				log.Println(c.BackendUrl, "State is stable")
+			if time.Since(lastStateChange) >= checkDuration && healthy {
+				log.Println(c.FrontendKey, "Backend", c.BackendUrl, " state is stable and healthy")
 				break
 			}
 			i = time.Duration(0)
 		}
 	}
 	if c.exitCallback != nil {
-		log.Println(c.BackendUrl, "Removed check")
+		log.Println(c.FrontendKey, "Removed check for backend", c.BackendUrl, "| ", runningCheckers-1, "backends being checked.")
 		c.exitCallback()
 	}
 }

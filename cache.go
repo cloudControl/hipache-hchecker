@@ -129,7 +129,7 @@ func (c *Cache) checkBackendMapping(check *Check, frontendKey string,
 	if resp == check.BackendUrl {
 		return true
 	}
-	log.Println(check.BackendUrl, "Mapping changed for", frontendKey)
+	log.Println(frontendKey, "had a maping change:", check.BackendUrl)
 	delete(*mapping, frontendKey)
 	return false
 }

@@ -27,6 +27,7 @@ func addCheck(line string) {
 		log.Println("Warning: got invalid data on the \"dead\" channel:", line)
 		return
 	}
+
 	if check.BackendGroupLength <= 1 {
 		// Add the check only if the frontend is scaled to several
 		// backends (backend is part of a group)
@@ -40,24 +41,24 @@ func addCheck(line string) {
 	// the PingUrl at different steps
 	check.SetDeadCallback(func() bool {
 		r := true
-		msg := "Flagging dead"
+		msg := "as dead"
 		if dryRun == false {
 			r = cache.MarkBackendDead(check)
 		} else {
 			msg += " (dry run)"
 		}
-		log.Println(check.BackendUrl, msg)
+		log.Println(check.FrontendKey, "Flagging backend", check.BackendUrl, msg)
 		return r
 	})
 	check.SetAliveCallback(func() bool {
 		r := true
-		msg := "Flagging alive"
+		msg := "as alive"
 		if dryRun == false {
 			r = cache.MarkBackendAlive(check)
 		} else {
 			msg += " (dry run)"
 		}
-		log.Println(check.BackendUrl, msg)
+		log.Println(check.FrontendKey, "Flagging backend", check.BackendUrl, msg)
 		return r
 	})
 	check.SetCheckIfBreakCallback(func() bool {
@@ -70,7 +71,7 @@ func addCheck(line string) {
 	// Check the URL at a regular interval
 	go check.PingUrl(ch)
 	runningCheckers += 1
-	log.Println(check.BackendUrl, "Added check")
+	log.Println(check.FrontendKey, "Dead backend found! Added check for", check.BackendUrl, "| ", runningCheckers, "backends being checked.")
 }
 
 /*
@@ -94,8 +95,8 @@ func printStats(cache *Cache) {
 				msg += " (dry run)"
 			}
 			msg += ","
-			log.Println(runningCheckers, msg, "using", runtime.NumGoroutine(),
-				"goroutines")
+			log.Println("Health checker status:", runningCheckers, msg, "using", runtime.NumGoroutine(),
+				"goroutines.")
 		}
 	}
 }
@@ -172,6 +173,7 @@ func main() {
 	if dryRun == true {
 		fmt.Println("Enabled dry run mode (simulation)")
 	}
+	log.Println("Writting logs to /var/log/supervisor/hchecker.log")
 	// Force 1 CPU to reduce parallelism. If you want to use more CPUs, prefer
 	// spawning several processes instead.
 	runtime.GOMAXPROCS(1)
