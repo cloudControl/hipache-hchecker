@@ -12,10 +12,12 @@ import (
 	"time"
 )
 
-const VERSION = "0.2.4"
+const VERSION = "0.2.5"
 
 var (
 	myId            string
+	redisPid        string
+	setRedisPid     = false
 	cache           *Cache
 	dryRun          = false
 	runningCheckers = 0
@@ -89,6 +91,18 @@ func printStats(cache *Cache) {
 		count += step
 		if count >= 60 {
 			// Every minute
+			// Check Redis PID
+			if infoRedis, err := cache.redisConn.InfoMap(); err == nil {
+				if !setRedisPid {
+					redisPid = infoRedis["process_id"]
+					setRedisPid = true
+				}
+				if newRedisPid := infoRedis["process_id"]; newRedisPid != redisPid {
+					log.Println("Redis was restarted. Exiting hchecker...")
+					os.Exit(1)
+				}
+			}
+			// Log status
 			count = 0
 			msg := "backend URLs are being tested"
 			if dryRun == true {
@@ -96,7 +110,7 @@ func printStats(cache *Cache) {
 			}
 			msg += ","
 			log.Println("Health checker status:", runningCheckers, msg, "using", runtime.NumGoroutine(),
-				"goroutines.")
+				"goroutines. Redis running on", redisPid)
 		}
 	}
 }
