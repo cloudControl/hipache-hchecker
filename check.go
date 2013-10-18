@@ -21,7 +21,7 @@ const (
 	// HTTP Host header
 	HTTP_HOST = "ping"
 	// Cloud Provider
-	PROVIDER = "cloudControl"
+	PROVIDER = "WhitelabelPAAS"
 	// Check the URL every 5 seconds
 	CHECK_INTERVAL = 5
 	// If the test keeps the same state for 5 min, stop it
