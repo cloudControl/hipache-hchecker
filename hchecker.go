@@ -12,7 +12,7 @@ import (
 	"time"
 )
 
-const VERSION = "0.2.5"
+const VERSION = "0.2.6"
 
 var (
 	myId            string

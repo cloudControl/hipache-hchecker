@@ -157,6 +157,12 @@ func (c *Check) PingUrl(ch chan int) {
 			newStatus = false
 			healthy = false
 			log.Println(c.FrontendKey, "Response from", c.BackendUrl, "... TCP error:", err.Error())
+			if strings.Contains(err.Error(), "too many open files") {
+				// we let the goroutine sleep if too many files are open
+				log.Println(c.FrontendKey, "Too many open files when checking", c.BackendUrl, ". goroutine sleeping.")
+				i += checkBreakInterval
+				time.Sleep(checkBreakInterval)
+			}
 		} else {
 			// No TCP error, checking HTTP code
 			if resp.StatusCode >= 500 && resp.StatusCode < 600 &&
