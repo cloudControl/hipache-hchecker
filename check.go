@@ -110,7 +110,9 @@ func (c *Check) doHttpRequest() (*http.Response, error) {
 			if err != nil {
 				return nil, err
 			}
-			conn.SetDeadline(time.Now().Add(ioTimeout))
+			if err := conn.SetDeadline(time.Now().Add(ioTimeout)); err != nil {
+				return nil, err
+			}
 			return conn, nil
 		}
 		httpTransport = &http.Transport{
@@ -155,6 +157,12 @@ func (c *Check) PingUrl(ch chan int) {
 			newStatus = false
 			healthy = false
 			log.Println(c.FrontendKey, "Response from", c.BackendUrl, "... TCP error:", err.Error())
+			if strings.Contains(err.Error(), "too many open files") {
+				// we let the goroutine sleep if too many files are open
+				log.Println(c.FrontendKey, "Too many open files when checking", c.BackendUrl, ". goroutine sleeping.")
+				i += checkBreakInterval
+				time.Sleep(checkBreakInterval)
+			}
 		} else {
 			// No TCP error, checking HTTP code
 			if resp.StatusCode >= 500 && resp.StatusCode < 600 &&
@@ -169,7 +177,7 @@ func (c *Check) PingUrl(ch chan int) {
 			}
 		}
 		if resp != nil && resp.Body != nil {
-			resp.Body.Close()
+			_ = resp.Body.Close()
 		}
 		// Check if the status changed before updating Redis
 		if newStatus != status || firstCheck == true {

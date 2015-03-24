@@ -20,7 +20,7 @@ class SimpleTestCase(base.TestCase):
 
         # Freezing the backend
         os.kill(pid, signal.SIGSTOP)
-        time.sleep(8)
+        time.sleep(30)
         dead = self.redis.smembers('dead:{0}'.format(frontend))
         self.assertEqual(len(dead), 1)
         self.assertEqual(self.http_request(port), -1)
