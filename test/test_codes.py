@@ -17,7 +17,7 @@ class SimpleTestCase(base.TestCase):
             if code > 0:
                 pid = self.spawn_httpd(port, code)
             frontend = self.add_check(port)
-            time.sleep(4)
+            time.sleep(6)
             dead = self.redis.smembers('dead:{0}'.format(frontend))
 
             self.unregister_frontend(frontend)
