@@ -110,7 +110,9 @@ func (c *Check) doHttpRequest() (*http.Response, error) {
 			if err != nil {
 				return nil, err
 			}
-			conn.SetDeadline(time.Now().Add(ioTimeout))
+			if err := conn.SetDeadline(time.Now().Add(ioTimeout)); err != nil {
+				return nil, err
+			}
 			return conn, nil
 		}
 		httpTransport = &http.Transport{
@@ -169,7 +171,7 @@ func (c *Check) PingUrl(ch chan int) {
 			}
 		}
 		if resp != nil && resp.Body != nil {
-			resp.Body.Close()
+			_ = resp.Body.Close()
 		}
 		// Check if the status changed before updating Redis
 		if newStatus != status || firstCheck == true {

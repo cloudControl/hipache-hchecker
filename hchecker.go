@@ -80,7 +80,7 @@ func addCheck(line string) {
  * Prints some stats on runtime
  */
 func printStats(cache *Cache) {
-	const step = 10 // 10 seconds
+	var step = 10 // 10 seconds
 	count := 0
 	for {
 		if dryRun == false {
@@ -126,7 +126,9 @@ func enableCPUProfile() {
 	if err != nil {
 		log.Fatal("Cannot enable CPU profile:", err)
 	}
-	pprof.StartCPUProfile(f)
+	if err := pprof.StartCPUProfile(f); err != nil {
+		log.Fatal("Cannot start CPU profile:", err)
+	}
 }
 
 /*
